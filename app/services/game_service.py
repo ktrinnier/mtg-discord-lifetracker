@@ -62,7 +62,9 @@ class GameService:
                 created_at=datetime.now(timezone.utc),
             )
             self.session.add(player)
-            self.session.flush()  # gets player.id without commit
+            self.session.flush()
+        else:
+            player.display_name = display_name
 
         # 2. Create participant link
         participant = GameParticipantModel(
