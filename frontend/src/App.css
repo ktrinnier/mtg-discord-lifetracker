@@ -240,12 +240,242 @@ button {
   cursor: pointer;
 }
 
-.userSelect {
-  min-width: 180px;
-  min-height: 96px;
-  padding: 10px;
-  border-radius: 16px;
+.playerPicker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.playerPick {
+  border: 1px solid #333;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #181818;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.playerPick.selected {
+  background: white;
+  color: black;
+  border-color: white;
+}
+
+.lobby {
+  margin-bottom: 20px;
+}
+
+.lobby h2 {
+  margin: 0 0 10px;
+}
+
+.muted {
+  color: #888;
+}
+
+.lobbyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.lobbyCard {
+  text-align: left;
   border: 1px solid #2b2b2b;
+  border-radius: 18px;
+  padding: 14px;
   background: #121212;
   color: white;
+  cursor: pointer;
+}
+
+.lobbyCard:hover {
+  border-color: #666;
+}
+
+.lobbyCardHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.lobbyCardHeader strong {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.lobbyCardHeader span {
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.lobbyPlayers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #ddd;
+}
+
+.notStartedBanner {
+  margin-bottom: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  text-align: center;
+}
+
+.notStartedBanner h2 {
+  margin: 0 0 6px;
+}
+
+.notStartedBanner p {
+  margin: 0 0 14px;
+  color: #bbb;
+}
+
+.notStartedBanner button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: white;
+  color: black;
+  font-weight: 900;
+}
+
+.summaryScreen {
+  width: 100%;
+  min-height: calc(100vh - 96px);
+  box-sizing: border-box;
+  padding: 48px 24px;
+  display: grid;
+  place-items: center;
+}
+
+.summaryScreen h2 {
+  font-size: 2rem;
+}
+
+.summaryCard {
+  background: #121212;
+  border: 1px solid #2b2b2b;
+  border-radius: 20px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.summaryCard h3 {
+  margin: 0 0 10px;
+}
+
+.summaryCard p {
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #222;
+}
+
+.summaryRow:last-child {
+  border-bottom: 0;
+}
+
+.summaryScreen button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: white;
+  color: black;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.summaryContent {
+  width: min(900px, 100%);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.winnerCard {
+  text-align: center;
+  padding: 48px 32px;
+  border-radius: 24px;
+  background: linear-gradient(
+    135deg,
+    #1f2937,
+    #111827
+  );
+  border: 1px solid #374151;
+}
+
+.winnerLabel {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #9ca3af;
+}
+
+.winnerName {
+  margin-top: 12px;
+  font-size: 3rem;
+  font-weight: 900;
+}
+
+.playerDropdown {
+  position: relative;
+}
+
+.playerDropdownButton {
+  min-width: 220px;
+  border: 1px solid #333;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #181818;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.playerDropdownMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  min-width: 240px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #121212;
+  border: 1px solid #333;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.playerDropdownItem {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+}
+
+.playerDropdownItem:hover {
+  background: #222;
+}
+
+.playerDropdownItem.selected {
+  background: white;
+  color: black;
+  font-weight: 900;
 }

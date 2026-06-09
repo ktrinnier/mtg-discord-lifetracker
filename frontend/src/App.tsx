@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 const API_BASE_URL = "http://localhost:8000";
@@ -17,12 +17,26 @@ type GameSummary = {
   game_id: string;
   status: string;
   participants: Participant[];
+  winner_player_id?: string | null;
+  first_blood?: {
+    player_id: string;
+    display_name: string | null;
+    delta: number;
+    created_at: string;
+  } | null;
 };
+
+
+type LobbyGame = GameSummary;
 
 function App() {
   const [gameId, setGameId] = useState("");
   const [game, setGame] = useState<GameSummary | null>(null);
-  const [guildId, setGuildId] = useState("local-test-guild");
+  // const [guildId, setGuildId] = useState("local-test-guild");
+  const guildId = "local-test-guild";
+  const [activeGames, setActiveGames] = useState<LobbyGame[]>([]);
+  const [view, setView] = useState<"lobby" | "game" | "summary">("lobby");
+  const [playerDropdownOpen, setPlayerDropdownOpen] = useState(false);
 
   const availableUsers = [
     { discord_user_id: "111111111", display_name: "Hank" },
@@ -39,6 +53,14 @@ function App() {
     const response = await fetch(`${API_BASE_URL}/games/${gameId}`);
     const data = await response.json();
     setGame(data);
+    setView("game");
+  }
+
+  async function loadActiveGames() {
+    const response = await fetch(`${API_BASE_URL}/games?status=active`);
+    const data = await response.json();
+
+    setActiveGames(data);
   }
 
   async function adjustLife(participantId: string, delta: number) {
@@ -61,26 +83,27 @@ function App() {
     await loadGame();
   }
 
-  async function createGame() {
-    const response = await fetch(
-      `${API_BASE_URL}/games?guild_id=${guildId}`,
-      {
-        method: "POST",
-      }
-    );
-
-    const data = await response.json();
-
-    setGameId(data.game_id);
-  }
-
-  async function addPlayers() {
+  async function createGameWithPlayers() {
     const selectedUsers = availableUsers.filter((user) =>
       selectedUserIds.includes(user.discord_user_id)
     );
 
+    if (selectedUsers.length === 0) {
+      return;
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/games?guild_id=${guildId}`,
+      { method: "POST" }
+    );
+
+    const data = await response.json();
+    const newGameId = data.game_id;
+
+    setGameId(newGameId);
+
     for (const player of selectedUsers) {
-      await fetch(`${API_BASE_URL}/games/${gameId}/players`, {
+      await fetch(`${API_BASE_URL}/games/${newGameId}/players`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -89,7 +112,11 @@ function App() {
       });
     }
 
-    await loadGame();
+    const gameResponse = await fetch(`${API_BASE_URL}/games/${newGameId}`);
+    const gameData = await gameResponse.json();
+
+    setGame(gameData);
+    setView("game");
   }
 
   async function startGame() {
@@ -117,8 +144,24 @@ function App() {
       }
     );
 
-    await loadGame();
+    const response = await fetch(`${API_BASE_URL}/games/${gameId}`);
+    const data = await response.json();
+
+    setGame(data);
+    setView("summary");
   }
+
+  useEffect(() => {
+    if (view !== "lobby") return;
+
+    loadActiveGames();
+
+    const interval = window.setInterval(() => {
+      loadActiveGames();
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [view]);
 
   return (
     <main className="app">
@@ -127,147 +170,246 @@ function App() {
           <h1>MTG Life Tracker</h1>
           {game && <p>{game.status}</p>}
         </div>
-
-        <div className="loadGame">
-          <input
-            value={gameId}
-            onChange={(e) => setGameId(e.target.value)}
-            placeholder="Paste game ID"
-          />
-          <button onClick={loadGame}>Load</button>
-        </div>
+        {view === "game" && (
+          <button
+            onClick={() => {
+              setView("lobby");
+            }}
+          >
+            ← Lobby
+          </button>
+        )}
       </header>
 
-      <section className="setupPanel">
-      <input
-        value={guildId}
-        onChange={(e) => setGuildId(e.target.value)}
-        placeholder="Guild ID"
-      />
+      {view === "summary" && game && (
+        <section className="summaryScreen">
+          <div className="summaryContent">
+            <h2>Game Finished</h2>
 
-      <button onClick={createGame}>
-        Create Game
-      </button>
-
-      <select
-        className="userSelect"
-        multiple
-        value={selectedUserIds}
-        onChange={(e) => {
-          const selected = Array.from(
-            e.target.selectedOptions,
-            (option) => option.value
-          );
-
-          setSelectedUserIds(selected);
-        }}
-      >
-        {availableUsers.map((user) => (
-          <option
-            key={user.discord_user_id}
-            value={user.discord_user_id}
-          >
-            {user.display_name}
-          </option>
-        ))}
-      </select>
-
-      <button
-        onClick={addPlayers}
-        disabled={!gameId}
-      >
-        Add Players
-      </button>
-
-      <button
-        onClick={startGame}
-        disabled={!gameId}
-      >
-        Start Game
-      </button>
-
-      <select
-        value={winnerPlayerId}
-        onChange={(e) =>
-          setWinnerPlayerId(e.target.value)
-        }
-      >
-        <option value="">
-          Select Winner
-        </option>
-
-        {game?.participants.map((p) => (
-          <option
-            key={p.player_id}
-            value={p.player_id}
-          >
-            {p.display_name}
-          </option>
-        ))}
-      </select>
-
-      <button
-        onClick={finishGame}
-        disabled={!winnerPlayerId}
-      >
-        Finish Game
-      </button>
-    </section>
-
-      {game && (
-        <section className="tableGrid">
-          {game.participants.map((p) => (
-            <article
-              key={p.participant_id}
-              className={`playerTile ${p.is_eliminated ? "eliminated" : ""}`}
-            >
-              <button
-                className="tapZone tapLeft"
-                onClick={() => adjustLife(p.participant_id, -1)}
-                aria-label={`${p.display_name} loses 1 life`}
-              >
-                −
-              </button>
-
-              <button
-                className="tapZone tapRight"
-                onClick={() => adjustLife(p.participant_id, 1)}
-                aria-label={`${p.display_name} gains 1 life`}
-              >
-                +
-              </button>
-
-              <div className="playerContent">
-                <div className="playerName">{p.display_name}</div>
-
-                <div className="lifeTotal">{p.life}</div>
-
-                <div className="quickControls">
-                  <button onClick={() => adjustLife(p.participant_id, -5)}>
-                    -5
-                  </button>
-                  <button onClick={() => adjustLife(p.participant_id, 5)}>
-                    +5
-                  </button>
-                </div>
-
-                <div className="counterBar">
-                  <span>☠ {p.poison_counters}</span>
-                  <button onClick={() => adjustPoison(p.participant_id, -1)}>
-                    -
-                  </button>
-                  <button onClick={() => adjustPoison(p.participant_id, 1)}>
-                    +
-                  </button>
-                </div>
-
-                {p.is_eliminated && (
-                  <div className="eliminatedBadge">ELIMINATED</div>
-                )}
+            <div className="winnerCard">
+              <div className="winnerLabel">
+                Winner
               </div>
-            </article>
-          ))}
+              <div className="winnerName">
+                {
+                  game.participants.find(
+                    (p) => p.player_id === game.winner_player_id
+                  )?.display_name ?? "Unknown"
+                }
+              </div>
+            </div>
+
+            <div className="summaryCard">
+              <h3>Final Life Totals</h3>
+
+              {game.participants.map((p) => (
+                <div key={p.participant_id} className="summaryRow">
+                  <span>{p.display_name}</span>
+                  <span>
+                    Life: {p.life} | Poison: {p.poison_counters}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {game.first_blood && (
+              <div className="summaryCard">
+                <h3>First Blood</h3>
+                <p>{game.first_blood.display_name}</p>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setView("lobby");
+                setGame(null);
+                setWinnerPlayerId("");
+                loadActiveGames();
+              }}
+            >
+              Return to Lobby
+            </button>
+          </div>
         </section>
+      )}
+
+      {view === "lobby" && (
+        <section className="setupPanel">
+          <div className="playerDropdown">
+            <button
+              className="playerDropdownButton"
+              onClick={() => setPlayerDropdownOpen(!playerDropdownOpen)}
+            >
+              {selectedUserIds.length === 0
+                ? "Select players"
+                : `${selectedUserIds.length} players selected`}
+            </button>
+
+            {playerDropdownOpen && (
+              <div className="playerDropdownMenu">
+                {availableUsers.map((user) => {
+                  const selected = selectedUserIds.includes(user.discord_user_id);
+
+                  return (
+                    <button
+                      key={user.discord_user_id}
+                      className={`playerDropdownItem ${selected ? "selected" : ""}`}
+                      onClick={() => {
+                        if (selected) {
+                          setSelectedUserIds(
+                            selectedUserIds.filter(
+                              (id) => id !== user.discord_user_id
+                            )
+                          );
+                        } else {
+                          setSelectedUserIds([
+                            ...selectedUserIds,
+                            user.discord_user_id,
+                          ]);
+                        }
+                      }}
+                    >
+                      <span>{user.display_name}</span>
+                      <span>{selected ? "✓" : ""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={createGameWithPlayers}
+            disabled={selectedUserIds.length === 0}
+          >
+            Create Game
+          </button>
+        </section>
+      )}
+
+      {view === "lobby" && (
+        <section className="lobby">
+          <h2>Active Games</h2>
+
+          {activeGames.length === 0 && (
+            <p className="muted">No active games found.</p>
+          )}
+
+          <div className="lobbyGrid">
+            {activeGames.map((activeGame) => (
+              <button
+                key={activeGame.game_id}
+                className="lobbyCard"
+                onClick={() => {
+                  setGameId(activeGame.game_id);
+                  setGame(activeGame);
+                  setView("game");
+                }}
+              >
+                <div className="lobbyCardHeader">
+                  <strong>{activeGame.status}</strong>
+                  <span>{activeGame.participants.length} players</span>
+                </div>
+
+                <div className="lobbyPlayers">
+                  {activeGame.participants.map((p) => (
+                    <span key={p.participant_id}>
+                      {p.display_name} ({p.life})
+                    </span>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {view === "game" && game && (
+        <>
+          {game.status === "created" && (
+            <section className="notStartedBanner">
+              <h2>Game not started</h2>
+              <p>Players are added. Start the game when everyone is ready.</p>
+              <button onClick={startGame}>Start Game</button>
+            </section>
+          )}
+          <section className="gameActions">
+            <select
+              value={winnerPlayerId}
+              onChange={(e) => setWinnerPlayerId(e.target.value)}
+            >
+              <option value="">Select Winner</option>
+
+              {game.participants.map((p) => (
+                <option
+                  key={p.player_id}
+                  value={p.player_id}
+                >
+                  {p.display_name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={finishGame}
+              disabled={!winnerPlayerId}
+            >
+              Finish Game
+            </button>
+          </section>
+
+          <section className="tableGrid">
+            {game.participants.map((p) => (
+              <article
+                key={p.participant_id}
+                className={`playerTile ${p.is_eliminated ? "eliminated" : ""}`}
+              >
+                <button
+                  className="tapZone tapLeft"
+                  onClick={() => adjustLife(p.participant_id, -1)}
+                  aria-label={`${p.display_name} loses 1 life`}
+                >
+                  −
+                </button>
+
+                <button
+                  className="tapZone tapRight"
+                  onClick={() => adjustLife(p.participant_id, 1)}
+                  aria-label={`${p.display_name} gains 1 life`}
+                >
+                  +
+                </button>
+
+                <div className="playerContent">
+                  <div className="playerName">{p.display_name}</div>
+
+                  <div className="lifeTotal">{p.life}</div>
+
+                  <div className="quickControls">
+                    <button onClick={() => adjustLife(p.participant_id, -5)}>
+                      -5
+                    </button>
+                    <button onClick={() => adjustLife(p.participant_id, 5)}>
+                      +5
+                    </button>
+                  </div>
+
+                  <div className="counterBar">
+                    <span>☠ {p.poison_counters}</span>
+                    <button onClick={() => adjustPoison(p.participant_id, -1)}>
+                      -
+                    </button>
+                    <button onClick={() => adjustPoison(p.participant_id, 1)}>
+                      +
+                    </button>
+                  </div>
+
+                  {p.is_eliminated && (
+                    <div className="eliminatedBadge">ELIMINATED</div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </section>
+        </>
       )}
     </main>
   );

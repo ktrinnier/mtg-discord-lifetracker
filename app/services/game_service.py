@@ -36,11 +36,7 @@ class GameService:
         display_name: str,
     ) -> GameParticipantModel:
 
-        game = (
-            self.session.query(GameModel)
-            .filter_by(id=game_id)
-            .first()
-        )
+        game = self.session.query(GameModel).filter_by(id=game_id).first()
 
         if not game:
             raise ValueError(f"Game not found: {game_id}")
@@ -96,10 +92,12 @@ class GameService:
 
         participant.current_life += delta
 
-        if (
-            participant.current_life <= 0
-            and participant.eliminated_at is None
-        ):
+        game = self.session.query(GameModel).filter_by(id=participant.game_id).first()
+
+        if game.status != GameStatus.ACTIVE:
+            raise ValueError(f"Cannot adjust life in game status {game.status}")
+
+        if participant.current_life <= 0 and participant.eliminated_at is None:
             participant.eliminated_at = datetime.now(timezone.utc)
 
             elimination_event = GameEventModel(
@@ -144,10 +142,12 @@ class GameService:
 
         participant.poison_counters += delta
 
-        if (
-            participant.poison_counters >= 10
-            and participant.eliminated_at is None
-        ):
+        game = self.session.query(GameModel).filter_by(id=participant.game_id).first()
+
+        if game.status != GameStatus.ACTIVE:
+            raise ValueError(f"Cannot adjust poison in game status {game.status}")
+
+        if participant.poison_counters >= 10 and participant.eliminated_at is None:
             participant.eliminated_at = datetime.now(timezone.utc)
             elimination_event = GameEventModel(
                 game_id=participant.game_id,
@@ -179,26 +179,16 @@ class GameService:
         self,
         game_id: str,
     ) -> list[GameParticipantModel]:
-        return (
-            self.session.query(GameParticipantModel)
-            .filter_by(game_id=game_id)
-            .all()
-        )
+        return self.session.query(GameParticipantModel).filter_by(game_id=game_id).all()
 
     def start_game(self, game_id: str) -> GameModel:
-        game = (
-            self.session.query(GameModel)
-            .filter_by(id=game_id)
-            .first()
-        )
+        game = self.session.query(GameModel).filter_by(id=game_id).first()
 
         if not game:
             raise ValueError(f"Game not found: {game_id}")
 
         if game.status != GameStatus.CREATED:
-            raise ValueError(
-                f"Cannot start game in status {game.status}"
-            )
+            raise ValueError(f"Cannot start game in status {game.status}")
 
         game.status = GameStatus.ACTIVE
         game.started_at = datetime.now(timezone.utc)
@@ -215,28 +205,22 @@ class GameService:
 
         return game
 
-    def finish_game(self, game_id, winner_player_id) ->  GameModel:
-        game = (
-            self.session.query(GameModel)
-            .filter_by(id=game_id)
-            .first()
-        )
+    def finish_game(self, game_id, winner_player_id) -> GameModel:
+        game = self.session.query(GameModel).filter_by(id=game_id).first()
 
         if not game:
             raise ValueError(f"Game not found: {game_id}")
 
         if game.status != GameStatus.ACTIVE:
-            raise ValueError(
-                f"Cannot finish game in status {game.status}"
-            )
+            raise ValueError(f"Cannot finish game in status {game.status}")
 
         game.status = GameStatus.FINISHED
         game.finished_at = datetime.now(timezone.utc)
 
         event = GameEventModel(
             game_id=game.id,
-            payload = {
-            "winner_player_id": winner_player_id,
+            payload={
+                "winner_player_id": winner_player_id,
             },
             player_id=winner_player_id,
             event_type=EventType.GAME_FINISHED,
@@ -250,11 +234,7 @@ class GameService:
         return game
 
     def get_game_summary(self, game_id: str) -> dict:
-        game = (
-            self.session.query(GameModel)
-            .filter_by(id=game_id)
-            .first()
-        )
+        game = self.session.query(GameModel).filter_by(id=game_id).first()
 
         if not game:
             raise ValueError(f"Game not found: {game_id}")
@@ -314,9 +294,7 @@ class GameService:
 
         losses = participations - wins
         win_rate = (
-            round((wins / participations) * 100, 2)
-            if participations > 0
-            else 0.0
+            round((wins / participations) * 100, 2) if participations > 0 else 0.0
         )
 
         return {
@@ -324,9 +302,9 @@ class GameService:
             "games_played": participations,
             "wins": wins,
             "losses": losses,
-            "win_rate": win_rate
+            "win_rate": win_rate,
         }
-    
+
     def get_player_by_discord_id(
         self,
         discord_user_id: str,
@@ -370,11 +348,7 @@ class GameService:
             .order_by(GameEventModel.created_at)
             .all()
         )
-        game = (
-            self.session.query(GameModel)
-            .filter_by(id=game_id)
-            .first()
-        )
+        game = self.session.query(GameModel).filter_by(id=game_id).first()
 
         if not game:
             raise ValueError(f"Game not found: {game_id}")
@@ -392,28 +366,16 @@ class GameService:
         ]
 
     def get_active_games(self) -> list[dict]:
-        games = (
-            self.session.query(GameModel)
-            .filter_by(status=GameStatus.ACTIVE)
-            .all()
-        )
+        games = self.session.query(GameModel).filter_by(status=GameStatus.ACTIVE).all()
 
-        return [
-            self.get_game_summary(game.id)
-            for game in games
-        ]
+        return [self.get_game_summary(game.id) for game in games]
 
     def get_finished_games(self) -> list[dict]:
         games = (
-            self.session.query(GameModel)
-            .filter_by(status=GameStatus.FINISHED)
-            .all()
+            self.session.query(GameModel).filter_by(status=GameStatus.FINISHED).all()
         )
 
-        return [
-            self.get_game_summary(game.id)
-            for game in games
-        ]
+        return [self.get_game_summary(game.id) for game in games]
 
     def get_first_blood(self, game_id: str) -> dict | None:
         events = (
